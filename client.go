@@ -33,8 +33,12 @@ func (c *Client) readMessages() {
 			}
 		}
 
-		log.Println(messageType)
-		log.Println(string(payload))
+		for wsClient := range c.manager.clients {
+			wsClient.egress <- payload
+		}
+
+		log.Printf("Message Type %v", messageType)
+		log.Printf("Payload %v", string(payload))
 	}
 }
 
@@ -42,6 +46,22 @@ func (c *Client) writeMessages() {
 	defer func() {
 		c.manager.removeClient(c)
 	}()
+
+	for {
+		select {
+		case message, ok := <-c.egress:
+			if !ok {
+				if err := c.connection.WriteMessage(websocket.CloseMessage, nil); err != nil {
+					log.Println("Connection closed: ", err)
+				}
+				return
+			}
+			if err := c.connection.WriteMessage(websocket.TextMessage, message); err != nil {
+				log.Printf("failed to send message: %v", err)
+			}
+			log.Println("Message sent")
+		}
+	}
 
 }
 

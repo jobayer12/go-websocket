@@ -56,7 +56,10 @@ func (m *Manager) removeClient(client *Client) {
 	defer m.Unlock()
 
 	if _, ok := m.clients[client]; ok {
-		client.connection.Close()
+		err := client.connection.Close()
+		if err != nil {
+			return
+		}
 		delete(m.clients, client)
 	}
 }
